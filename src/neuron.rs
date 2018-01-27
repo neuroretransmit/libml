@@ -1,7 +1,6 @@
 extern crate rand;
 
 use rand::distributions::{IndependentSample, Range};
-use tdata::{TData};
 
 #[derive(Debug)]
 struct Neuron {
@@ -38,101 +37,53 @@ impl Neuron {
         self.output
     }
 
-    pub fn train(&mut self, data: &TData, epochs: usize, lrate: f32) {
-        for _ in 0..epochs {
-            for sample in data.samples() {
-                let output = self.fire(sample.inputs());
-                let local_err = sample.outputs()[0] - output;
+    pub fn train(&mut self, inputs: &Vec<f32>, expected: f32, lrate: f32) {
+        let output = self.fire(inputs);
+        let local_err = expected - output;
 
-                for j in 0..sample.inputs().len() {
-                    self.weights[j] += lrate * local_err * sample.inputs()[j];
-                }
-                
-                self.weights[self.bias_idx] += lrate * local_err;
-            }
+        for j in 0..inputs.len() {
+            self.weights[j] += lrate * local_err * inputs[j];
         }
-    }
 
-    pub fn weights(&self) -> &Vec<f32> {
-        &self.weights
-    }
-
-    pub fn delta(&self) -> &f32 {
-        &self.delta
-    }
-
-    pub fn delta_mut(&mut self) -> &f32 {
-        &self.delta
-    }
-
-    pub fn output(&self) -> &f32 {
-        &self.output
+        self.weights[self.bias_idx] += lrate * local_err;
     }
 }
 
 #[cfg(test)]
 mod tests {
-    mod neuron {
-        use neuron::{Neuron};
-        use tdata::{TData};
-        
-        #[test]
-        fn new() {
-            let neuron = Neuron::new(2);
-            let weights = neuron.weights();
-            assert_eq!(weights.len(), 3);
-            
-            for w in weights {
-                assert_ne!(*w, 0.0);
-            }
+    use neuron::{Neuron};
 
-            assert_eq!(*neuron.delta(), 0.0f32);
-            assert_eq!(*neuron.output(), 0.0f32);
+    #[test]
+    fn new() {
+        let neuron = Neuron::new(2);
+        assert_eq!(neuron.weights.len(), 3);
+
+        for w in neuron.weights {
+            assert_ne!(w, 0.0);
         }
 
-        #[test]
-        fn train() {
-            let mut neuron: Neuron = Neuron::new(2);
-            let data: TData = TData::new(2, 1, "data/or.csv").unwrap();
-            let original_weights = neuron.weights().clone();
-            neuron.train(&data, 2000, 0.2);
-            
-            // Test weight change
-            for i in 0..original_weights.len() {
-                assert_ne!(original_weights[i], neuron.weights()[i]);
-            }
-           
-            // Test OR
-            for sample in data.samples() {
-                assert_eq!(if neuron.fire(sample.inputs()) >= 0.5 { 1.0 } else { 0.0 }, sample.outputs()[0]);
-            }
+        assert_eq!(neuron.delta, 0.0f32);
+        assert_eq!(neuron.output, 0.0f32);
+    }
 
-            let mut neuron: Neuron = Neuron::new(2);
-            let data: TData = TData::new(2, 1, "data/and.csv").unwrap();
-            neuron.train(&data, 2000, 0.2);
+    #[test]
+    fn fire() {
+        let mut neuron: Neuron = Neuron::new(2);
+        let inputs = vec![0.2, 0.3];
+        assert_eq!(neuron.fire(&inputs), inputs.iter()
+            .zip(neuron.weights.iter() )
+            .fold(neuron.weights[neuron.weights.len() - 1], |sum, (a, b)| sum + a * b).tanh());
+    }
 
-            // Test AND
-            for sample in data.samples() {
-                assert_eq!(if neuron.fire(sample.inputs()) >= 0.5 { 1.0 } else { 0.0 }, sample.outputs()[0]);
-            }
+    #[test]
+    fn train() {
+        let mut neuron: Neuron = Neuron::new(2);
+        let original_weights = neuron.weights.clone();
+        neuron.train(&vec![0.2, 1.1], 1.0, 0.2);
 
-            let mut neuron: Neuron = Neuron::new(2);
-            let data: TData = TData::new(2, 1, "data/nand.csv").unwrap();
-            neuron.train(&data, 2000, 0.2);
-
-            // Test NAND
-            for sample in data.samples() {
-                assert_eq!(if neuron.fire(sample.inputs()) >= 0.5 { 1.0 } else { 0.0 }, sample.outputs()[0]);
-            }
-
-            let mut neuron: Neuron = Neuron::new(2);
-            let data: TData = TData::new(2, 1, "data/nor.csv").unwrap();
-            neuron.train(&data, 2000, 0.2);
-
-            // Test NOR
-            for sample in data.samples() {
-                assert_eq!(if neuron.fire(sample.inputs()) >= 0.5 { 1.0 } else { 0.0 }, sample.outputs()[0]);
-            }
+        // Test weight change
+        for i in 0..original_weights.len() {
+            assert_ne!(original_weights[i], neuron.weights[i]);
         }
     }
 }
