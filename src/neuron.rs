@@ -15,7 +15,7 @@ impl Neuron {
         let between = Range::new(-1f32, 1.);
         let mut rng = rand::thread_rng();
         let mut weights = Vec::new();
-        
+
         for _ in 0..num_inputs + 1 /* bias */ {
             weights.push(between.ind_sample(&mut rng));
         }
@@ -205,51 +205,48 @@ mod tests {
     #[test]
     fn mnist_handwritten_database() {
         if let Some(mut train_images) = MNISTImageFile::new("data/mnist/train-images.idx3-ubyte") {
-            match MNISTLabelFile::new("data/mnist/train-labels.idx1-ubyte") {
-                Some(mut train_labels) => {
-                    let mut neurons = Vec::new();
+            if let Some(mut train_labels) = MNISTLabelFile::new("data/mnist/train-labels.idx1-ubyte") {
+                let mut neurons = Vec::new();
 
-                    // Create a neuron for each label 0-9 with 784 inputs for each pixel in the 28x28 image
-                    // Since this is greyscale, every pixel will be a value between 0-255
-                    for _ in 0..10 {
-                        neurons.push(Neuron::new(MNIST_ROWS * MNIST_COLS));
-                    }
+                // Create a neuron for each label 0-9 with 784 inputs for each pixel in the 28x28 image
+                // Since this is greyscale, every pixel will be a value between 0-255
+                for _ in 0..10 {
+                    neurons.push(Neuron::new(MNIST_ROWS * MNIST_COLS));
+                }
 
-                    // Train neurons with 60k training samples
-                    for _ in 0..train_images.num_items() {
-                        let label = train_labels.next_item();
-                        let inputs = train_images.next_item();
-                        neurons[label as usize].train(&to_f32_vec!(inputs), label as f32, 0.2);
-                    }
+                // Train neurons with 60k training samples
+                for _ in 0..train_images.num_items() {
+                    let label = train_labels.next_item();
+                    let inputs = train_images.next_item();
+                    neurons[label as usize].train(&to_f32_vec!(inputs), label as f32, 0.2);
+                }
 
-                    if let Some(mut test_images) = MNISTImageFile::new("data/mnist/t10k-images.idx3-ubyte") {
-                        if let Some(mut test_labels) = MNISTLabelFile::new("data/mnist/t10k-labels.idx1-ubyte") {
-                            let mut errors = 0;
+                if let Some(mut test_images) = MNISTImageFile::new("data/mnist/t10k-images.idx3-ubyte") {
+                    if let Some(mut test_labels) = MNISTLabelFile::new("data/mnist/t10k-labels.idx1-ubyte") {
+                        let mut errors = 0;
 
-                            for _ in 0..test_images.num_items() {
-                                let test_label = test_labels.next_item();
-                                let test_inputs = test_images.next_item();
+                        for _ in 0..test_images.num_items() {
+                            let test_label = test_labels.next_item();
+                            let test_inputs = test_images.next_item();
 
-                                for j in 0..neurons.len() {
-                                    let output = neurons[j].fire(&to_f32_vec!(test_inputs));
+                            for j in 0..neurons.len() {
+                                let output = neurons[j].fire(&to_f32_vec!(test_inputs));
 
-                                    if j as u8 != test_label && float_to_bool!(output) {
-                                        errors += 1;
-                                    } else if j as u8 == test_label && !float_to_bool!(output) {
-                                        errors += 1;
-                                    }
+                                if j as u8 != test_label && float_to_bool!(output) {
+                                    errors += 1;
+                                } else if j as u8 == test_label && !float_to_bool!(output) {
+                                    errors += 1;
                                 }
                             }
-
-                            let error_rate = (test_images.num_items() * neurons.len() as u32) as f32 / errors as f32;
-                            eprintln!("MNIST error rate: {}", error_rate);
-                            assert!(error_rate < 1.25);
                         }
+
+                        let error_rate = (test_images.num_items() * neurons.len() as u32) as f32 / errors as f32;
+                        eprintln!("MNIST error rate: {}", error_rate);
+                        assert!(error_rate < 1.25);
                     }
-                },
-                _ => {
-                    assert!(false);
                 }
+            } else {
+                assert!(false);
             }
         } else {
             assert!(false);
