@@ -5,3 +5,4 @@ authors = ["J Ninja <j@optimistic.ninja>"]
 
 [dependencies]
 rand = "0.4"
+byteorder = "1"

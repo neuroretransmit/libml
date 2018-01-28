@@ -2,13 +2,10 @@ extern crate rand;
 
 use rand::distributions::{IndependentSample, Range};
 
-#[derive(Debug)]
-struct Neuron {
+pub struct Neuron {
     weights: Vec<f32>,
-    delta: f32,
     output: f32,
     bias_idx: usize,
-    expected_idx: usize
 }
 
 impl Neuron {
@@ -23,10 +20,8 @@ impl Neuron {
 
         Neuron {
             weights,
-            delta: 0.0f32,
             output: 0.0f32,
             bias_idx: num_inputs,
-            expected_idx: num_inputs
         }
     }
 
@@ -52,6 +47,7 @@ impl Neuron {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mnist_decoder::{ MNISTSequence, MNISTLabelFile, MNISTImageFile, MNIST_COLS, MNIST_ROWS };
 
     const INPUTS: [[f32; 2]; 4] = [
         [0.0, 0.0],
@@ -62,6 +58,10 @@ mod tests {
 
     macro_rules! float_to_bool {
         ($x:expr) => (if $x >= 0.5 { true } else { false })
+    }
+
+    macro_rules! to_f32_vec {
+        ($x:expr) => ($x.iter().map(|&e| e as f32).collect())
     }
 
     #[test]
@@ -168,6 +168,57 @@ mod tests {
 
         for i in 0..INPUTS.len() {
             assert_eq!(float_to_bool!(neuron.fire(&INPUTS[i].to_vec())), float_to_bool!(expected[i]));
+        }
+    }
+
+    #[test]
+    fn mnist_handwritten_database() {
+        if let Some(mut train_images) = MNISTImageFile::new("data/mnist/train-images.idx3-ubyte") {
+            if let Some(mut train_labels) = MNISTLabelFile::new("data/mnist/train-labels.idx1-ubyte") {
+                let mut neurons = Vec::new();
+
+                // Create a neuron for each label 0-9 with 784 inputs for each pixel in the 28x28 image
+                // Since this is greyscale, every pixel will be a value between 0-255
+                for _ in 0..10 {
+                    neurons.push(Neuron::new(MNIST_ROWS * MNIST_COLS));
+                }
+
+                // Train neurons with 60k training samples
+                for _ in 0..train_images.num_items() {
+                    let label = train_labels.next_item();
+                    let inputs = train_images.next_item();
+                    neurons[label as usize].train(&to_f32_vec!(inputs), label as f32, 0.2);
+                }
+
+                if let Some(mut test_images) = MNISTImageFile::new("data/mnist/t10k-images.idx3-ubyte") {
+                    if let Some(mut test_labels) = MNISTLabelFile::new("data/mnist/t10k-labels.idx1-ubyte") {
+                        let mut errors = 0;
+
+                        for _ in 0..test_images.num_items() {
+                            let test_label = test_labels.next_item();
+                            let test_inputs = test_images.next_item();
+
+                            for j in 0..neurons.len() {
+                                let output = neurons[j].fire(&to_f32_vec!(test_inputs));
+
+                                if j as u8 != test_label && float_to_bool!(output) {
+                                    errors += 1;
+                                } else if j as u8 == test_label && !float_to_bool!(output) {
+                                    errors += 1;
+                                }
+                            }
+                        }
+
+                        let error_rate = (test_images.num_items() * neurons.len() as u32) as f32 / errors as f32;
+                        eprintln!("MNIST error rate: {}", error_rate);
+                        assert!(error_rate < 1.25);
+                    }
+                }
+            } else {
+                assert!(false);
+            }
+        } else {
+            assert!(false);
         }
     }
 }
