@@ -27,11 +27,11 @@ impl BPNN {
     }
 
     pub fn train(&mut self, inputs: &Vec<f32>, expected: &Vec<f32>, lrate: f32) {
-        //let mut sum_error = 0.0;
+        //let mut sum_error = 0.0; // For logging error //
         let _ = self.feed_forward(inputs);
-        /*for i in 0..expected.len() {
+        /*for i in 0..expected.len() { ///////////////////
             sum_error += (expected[i] - outputs[i]).powi(2);
-        }*/
+        }*////////////////////////////////////////////////
         self.back_propagate(expected);
         self.update_weights(inputs, lrate);
     }
@@ -51,26 +51,26 @@ impl BPNN {
     fn back_propagate(&mut self, expected: &Vec<f32>) {
         let num_layers = self.layers.len();
         for i in (0..num_layers).rev() {
-            let mut deltas = Vec::new();
+            let mut errors = Vec::new();
 
             if i != num_layers - 1 {
                 for j in 0..self.layers[i].len() {
-                    let mut delta = 0.0;
+                    let mut error = 0.0;
                     for neuron in &self.layers[i + 1] {
-                        delta += neuron.weight(j) * neuron.delta();
+                        error += neuron.weight(j) * neuron.delta();
                     }
-                    deltas.push(delta);
+                    errors.push(error);
                 }
             } else {
                 for j in 0..self.layers[i].len() {
                     let delta = expected[j] - self.layers[i][j].output();
-                    deltas.push(delta);//self.layers[i][j].set_delta(delta)
+                    errors.push(delta);
                 }
             }
 
             for j in 0..self.layers[i].len() {
                 let derivative = self.layers[i][j].derivative();
-                self.layers[i][j].set_delta(deltas[j] * derivative);
+                self.layers[i][j].set_delta(errors[j] * derivative);
             }
         }
     }
