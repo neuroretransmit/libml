@@ -1,5 +1,6 @@
-
 /target/
 **/*.rs.bk
 Cargo.lock
 /.idea/
+/doc/libml.pdf
+/doc/libml.synctex.gz
